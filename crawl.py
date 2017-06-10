@@ -10,9 +10,10 @@ import sqlite3
 import urllib
 from bs4 import BeautifulSoup
 from urlparse import urlparse, urljoin
+import re
 
 scontext = None
-starturl = 'http://ordnet.dk/ddo/ordbog?mselect=6746&query=pusten'
+starturl = 'http://ordnet.dk/ddo/ordbog?query=pusten'
 conn = sqlite3.connect('spider.sqlite')
 cur = conn.cursor()
 
@@ -29,6 +30,7 @@ rows = cur.fetchall()
 l = len(rows)
 print "there are " + str(l) + " html rows"
 many = 2
+ddd = {}
 while many>0:
 
     many = many - 1
@@ -67,6 +69,25 @@ while many>0:
         print '('+str(len(html))+')',
 
         soup = BeautifulSoup(html)
+        # - test if language is danish
+        # - test if document is legal...
+        # - extract text from it
+        # find relevant text before adding words to frequency dictionary
+        # TODO: learn how to use soup instance
+        # in this type of html, the 'span' tag contains the text if it has 'class=definition'
+        spans = soup.find_all('span', recursive=True)
+        for sp in spans:
+            try:
+                if 'definition' in sp.attrs['class']:
+                   words = sp.text.split()
+                   for word in words:
+                       word = word.strip()
+                       if word == '':
+                           continue
+                       # initialize or update word count
+                       ddd[word] = ddd.get(word,0)+1
+            except:
+                continue
     except KeyboardInterrupt:
         print ''
         print 'Program interrupted by user...'
@@ -80,7 +101,6 @@ while many>0:
     cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0)', ( url, ) ) # I think this line is redundant and will always ignored
     cur.execute('UPDATE Pages SET html=? WHERE url=?', (1, url ) )
     conn.commit()
-
     # Retrieve all of the anchor tags
     tags = soup('a')
     tag_count = 0
