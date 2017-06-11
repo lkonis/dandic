@@ -16,7 +16,17 @@ scontext = None
 starturl = 'http://ordnet.dk/ddo/ordbog?query=pusten'
 conn = sqlite3.connect('spider.sqlite')
 cur = conn.cursor()
-
+cur.execute('''CREATE TABLE IF NOT EXISTS Words
+    (
+    id INTEGER PRIMARY KEY,
+    text TEXT UNIQUE,
+    freq INTEGER
+    )''')
+cur.execute('''SELECT text,freq FROM Words''')
+words = cur.fetchall()
+ddd={}
+for k,v in words:
+    ddd[k] = v
 cur.execute('''CREATE TABLE IF NOT EXISTS Pages 
     (
      id INTEGER PRIMARY KEY,
@@ -29,8 +39,7 @@ cur.execute('''SELECT id,url FROM Pages WHERE html == 1''')
 rows = cur.fetchall()
 l = len(rows)
 print "there are " + str(l) + " html rows"
-many = 2
-ddd = {}
+many = 1
 while many>0:
 
     many = many - 1
@@ -68,26 +77,6 @@ while many>0:
 
         print '('+str(len(html))+')',
 
-        soup = BeautifulSoup(html)
-        # - test if language is danish
-        # - test if document is legal...
-        # - extract text from it
-        # find relevant text before adding words to frequency dictionary
-        # TODO: learn how to use soup instance
-        # in this type of html, the 'span' tag contains the text if it has 'class=definition'
-        spans = soup.find_all('span', recursive=True)
-        for sp in spans:
-            try:
-                if 'definition' in sp.attrs['class']:
-                   words = sp.text.split()
-                   for word in words:
-                       word = word.strip()
-                       if word == '':
-                           continue
-                       # initialize or update word count
-                       ddd[word] = ddd.get(word,0)+1
-            except:
-                continue
     except KeyboardInterrupt:
         print ''
         print 'Program interrupted by user...'
@@ -97,6 +86,31 @@ while many>0:
         cur.execute('UPDATE Pages SET error=-1 WHERE url=?', (url, ) )
         conn.commit()
         continue
+
+    soup = BeautifulSoup(html)
+    # - test if language is danish
+    # - test if document is legal...
+    # - extract text from it
+    # find relevant text before adding words to frequency dictionary
+    # TODO: learn how to use soup instance
+    # in this type of html, the 'span' tag contains the text if it has 'class=definition'x
+    spans = soup.find_all('span', recursive=True)
+    for sp in spans:
+        try:
+            if 'definition' in sp.attrs['class']:
+                words = sp.text.split()
+                for word in words:
+                    word = word.strip()
+                    if word == '':
+                        continue
+                    # initialize or update word count
+                    ddd[word] = ddd.get(word, 0) + 1
+                    cur.execute('INSERT OR IGNORE INTO Words (text, freq) VALUES (?, 0)', (word,))
+                    cur.execute('UPDATE Words SET freq=? WHERE text=?', (ddd[word], word))
+#                    cur.execute('UPDATE Words SET freq=freq+1 WHERE text=?', (word,))
+
+        except:
+            continue
 
     cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0)', ( url, ) ) # I think this line is redundant and will always ignored
     cur.execute('UPDATE Pages SET html=? WHERE url=?', (1, url ) )
