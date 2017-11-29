@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # explain the interface of this function
 # put it in the koggle
 # create 3 tables:
@@ -12,35 +15,38 @@ from bs4 import BeautifulSoup
 from urlparse import urlparse, urljoin
 import re
 
-scontext = None
-starturl = 'http://ordnet.dk/ddo/ordbog?query=pusten'
-starturl = 'http://jyllands-posten.dk'
-starturl = 'https://jyllands-posten.dk/protected/premium/turengaartil/ECE9641673/hoejers-kreative-sjaele-fyrer-op-under-toendermarsken/'
-conn = sqlite3.connect('spider.sqlite')
-cur = conn.cursor()
-cur.execute('''CREATE TABLE IF NOT EXISTS Words
+
+def init_pages_table():
+    global starturl, conn, cur, ddd
+    #starturl = 'http://ordnet.dk/ddo/ordbog?query=pusten'
+    starturl = 'http://jyllands-posten.dk'
+    conn = sqlite3.connect('spider.sqlite')
+    cur = conn.cursor()
+    cur.execute('''CREATE TABLE IF NOT EXISTS Words
     (
     id INTEGER PRIMARY KEY,
     text TEXT UNIQUE,
     freq INTEGER
     )''')
-cur.execute('''SELECT text,freq FROM Words''')
-words = cur.fetchall()
-ddd={}
-for k,v in words:
-    ddd[k] = v
-cur.execute('''CREATE TABLE IF NOT EXISTS Pages 
+    cur.execute('''SELECT text,freq FROM Words''')
+    words = cur.fetchall()
+    ddd = {}
+    for k, v in words:
+        ddd[k] = v
+    cur.execute('''CREATE TABLE IF NOT EXISTS Pages 
     (
      id INTEGER PRIMARY KEY,
      url TEXT UNIQUE,
      error INTEGER,
      html INTEGER
     )''')
-# count how many entries with html exist
-cur.execute('''SELECT id,url FROM Pages WHERE html == 1''')
-rows = cur.fetchall()
-l = len(rows)
-print "there are " + str(l) + " html rows"
+    # count how many entries with html exist
+    cur.execute('''SELECT id,url FROM Pages WHERE html == 1''')
+    rows = cur.fetchall()
+    l = len(rows)
+    print "There is an initial table of pages with " + str(l) + " lines"
+
+
 def ignore_tags(url, href):
     ignore = False
     if (href is None):
@@ -77,21 +83,9 @@ def extract_from_new_link():
     # 3. extract all text words and update word-database
 
     # 1. pick a random unused link
-    cur.execute('SELECT id,url FROM Pages WHERE html == 0 ORDER BY RANDOM() LIMIT 1')
-    try:
-        row = cur.fetchone()
-        # print row
-        fromid = row[0]
-        url = row[1]
-    except:
-        print 'Empty table or no unretrieved HTML pages found'
-        url = starturl
-        fromid = 0
-
-    print fromid, url,
+    url = pick_unused_link(cur)
 
     try:
-        # document = urllib.urlopen(url, context=scontext)
 
         # Normal Unless you encounter certificate problems
         document = urllib.urlopen(url)
@@ -107,7 +101,7 @@ def extract_from_new_link():
             conn.commit()
             return
 
-        print '('+str(len(html))+')',
+        print '(this page has '+str(len(html))+' characters)',
 
     except KeyboardInterrupt:
         print ''
@@ -119,12 +113,37 @@ def extract_from_new_link():
         conn.commit()
         return
 
+    def tag_visible(element):
+        from bs4.element import Comment
+        if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
+            return False
+        if isinstance(element, Comment):
+            return False
+        if element.isspace():
+            return False
+        dansk_str = re.compile(unicode('^[a-zæøåA-ZÆØÅ\s,.:!?]*$', 'utf-8'))
+        try:
+            if dansk_str.match(element):
+                return True
+        except:
+            return False
+
+    def text_from_html(body):
+        soup = BeautifulSoup(body, 'html.parser')
+        texts = soup.findAll(text=True)
+        visible_texts = filter(tag_visible, texts)
+        return u" ".join(t.strip() for t in visible_texts)
+
+    body_text = text_from_html(html)
+    words = body_text.split()
+    extract_words(words,ddd)
     soup = BeautifulSoup(html)
     # - test if language is danish
     # - test if document is legal...
     # - extract text from it
     # find relevant text before adding words to frequency dictionary
     # TODO: consider adding soup.find_all('p') and soup.find_all('div') and then search for text in each member
+    '''
     # 1. jyllan post
     metas = soup.find_all('meta')
     for m in metas:
@@ -148,6 +167,7 @@ def extract_from_new_link():
 
         except:
             continue
+    '''
     # region Description
 #    for div in soup.find_all('div', recursive=True):
 #        try:
@@ -170,7 +190,22 @@ def extract_from_new_link():
         cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0 )', ( href, ) )
         tag_count = tag_count + 1
     conn.commit()
-    print tag_count
+    print ', ' + str(tag_count) + ' new links where added to page table'
+
+
+def pick_unused_link(cur):
+    cur.execute('SELECT id,url FROM Pages WHERE html == 0 ORDER BY RANDOM() LIMIT 1')
+    try:
+        row = cur.fetchone()
+        # print row
+        fromid = row[0]
+        url = row[1]
+    except:
+        print 'Empty table or no unretrieved HTML pages found'
+        url = starturl
+        fromid = 0
+    print 'extract words from page: ', url,
+    return url
 
 
 def extract_words(words,ddd):
@@ -180,6 +215,7 @@ def extract_words(words,ddd):
             continue
         if len(re.findall('[0-9_@#"%&/()=+?-]', word)):
             continue
+        word = re.sub('[.,]', '', word.lower())
         # initialize or update word count
         ddd[word] = ddd.get(word, 0) + 1
         cur.execute('INSERT OR IGNORE INTO Words (text, freq) VALUES (?, 0)', (word,))
@@ -188,5 +224,7 @@ def extract_words(words,ddd):
 
 
 if __name__ == '__main__':
-    extract_from_new_link()
+    init_pages_table()
+    for i in range(10):
+        extract_from_new_link()
     cur.close()
