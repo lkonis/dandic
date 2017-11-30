@@ -18,8 +18,8 @@ import re
 
 def init_pages_table():
     global starturl, conn, cur, ddd
-    #starturl = 'http://ordnet.dk/ddo/ordbog?query=pusten'
-    starturl = 'http://jyllands-posten.dk'
+    starturl = 'http://ordnet.dk/ddo/ordbog?query=pusten'
+    # starturl = 'http://jyllands-posten.dk'
     conn = sqlite3.connect('spider.sqlite')
     cur = conn.cursor()
     cur.execute('''CREATE TABLE IF NOT EXISTS Words
@@ -91,6 +91,7 @@ def extract_from_new_link():
         document = urllib.urlopen(url)
 
         html = document.read()
+        # - test if document is legal...
         if document.getcode() != 200 :
             print "Error on page: ",document.getcode()
             cur.execute('UPDATE Pages SET error=? WHERE url=?', (document.getcode(), url) )
@@ -112,7 +113,11 @@ def extract_from_new_link():
         cur.execute('UPDATE Pages SET error=-1 WHERE url=?', (url, ) )
         conn.commit()
         return
+    # TODO - test if language is danish
 
+
+    # 3. extract text from it
+    # find relevant text before adding words to frequency dictionary
     def tag_visible(element):
         from bs4.element import Comment
         if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
@@ -136,50 +141,16 @@ def extract_from_new_link():
 
     body_text = text_from_html(html)
     words = body_text.split()
+    # add words into temporary dictionary, ans also update SQL word table
     extract_words(words,ddd)
+    # update the page table in sql file, checking the current page url as 'used'
     soup = BeautifulSoup(html)
-    # - test if language is danish
-    # - test if document is legal...
-    # - extract text from it
-    # find relevant text before adding words to frequency dictionary
-    # TODO: consider adding soup.find_all('p') and soup.find_all('div') and then search for text in each member
-    '''
-    # 1. jyllan post
-    metas = soup.find_all('meta')
-    for m in metas:
-        if ('name' in m.attrs ) and ('description' in m.attrs['name']):
-            words = m['content'].split()
-            extract_words(words,ddd)
-
-    divs = soup.find_all('div')
-    for d in divs:
-        if len(d.contents)==0:
-            words = d.text.split()
-            extract_words(words,ddd)
-    # 2. DDO - in this type of html, the 'span' tag contains the text if it has 'class=definition'x
-    spans = soup.find_all('span', recursive=True)
-    for sp in spans:
-        try:
-            if 'definition' in sp.attrs['class']:
-                words = sp.text.split()
-
-                extract_words(words,ddd)
-
-        except:
-            continue
-    '''
-    # region Description
-#    for div in soup.find_all('div', recursive=True):
-#        try:
-#            words = div.text
-#            extract_words(words,ddd)
-#        except:
-#            continue
-        # endregion
-    cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0)', ( url, ) ) # I think this line is redundant and will always ignored
+    cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0)', ( url, ) )
     cur.execute('UPDATE Pages SET html=? WHERE url=?', (1, url ) )
     conn.commit()
-    # Retrieve all of the anchor tags
+    # 2. extract other links
+    #  Retrieve all of the anchor tags
+    # update the page table in sql file, adding new urls
     tags = soup('a')
     tag_count = 0
     for tag in tags:
@@ -192,7 +163,7 @@ def extract_from_new_link():
     conn.commit()
     print ', ' + str(tag_count) + ' new links where added to page table'
 
-
+# pick a random unused url from the SQL Pages table
 def pick_unused_link(cur):
     cur.execute('SELECT id,url FROM Pages WHERE html == 0 ORDER BY RANDOM() LIMIT 1')
     try:
@@ -207,7 +178,7 @@ def pick_unused_link(cur):
     print 'extract words from page: ', url,
     return url
 
-
+# update both the temporary dictionary and the SQL Words table
 def extract_words(words,ddd):
     for word in words:
         word = word.strip()
