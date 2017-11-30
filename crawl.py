@@ -40,11 +40,15 @@ def init_pages_table():
      error INTEGER,
      html INTEGER
     )''')
-    # count how many entries with html exist
+    # count how many entries exist
+    cur.execute('''SELECT id,url FROM Pages''')
+    rows = cur.fetchall()
+    pl = len(rows)
+    # count how many used entries (with html ==1)
     cur.execute('''SELECT id,url FROM Pages WHERE html == 1''')
     rows = cur.fetchall()
     l = len(rows)
-    print "There is an initial table of pages with " + str(l) + " lines"
+    print "A table of "+str(pl)+" pages already exists, in which " + str(l) + " of them were used"
 
 
 def ignore_tags(url, href):
@@ -83,8 +87,24 @@ def extract_from_new_link():
     # 3. extract all text words and update word-database
 
     # 1. pick a random unused link
+    # pick a random unused url from the SQL Pages table
+    def pick_unused_link(cur):
+        cur.execute('SELECT id,url FROM Pages WHERE html == 0 ORDER BY RANDOM() LIMIT 1')
+        try:
+            row = cur.fetchone()
+            # print row
+            fromid = row[0]
+            url = row[1]
+        except:
+            print 'Empty table or no unretrieved HTML pages found'
+            url = starturl
+            fromid = 0
+        print 'extract words from page: ', url,
+        return url
+
     url = pick_unused_link(cur)
 
+    # try to read a page using the new url, update the SQL Pages table
     try:
 
         # Normal Unless you encounter certificate problems
@@ -102,7 +122,7 @@ def extract_from_new_link():
             conn.commit()
             return
 
-        print '(this page has '+str(len(html))+' characters)',
+        print '('+str(len(html))+' characters):'
 
     except KeyboardInterrupt:
         print ''
@@ -139,12 +159,27 @@ def extract_from_new_link():
         visible_texts = filter(tag_visible, texts)
         return u" ".join(t.strip() for t in visible_texts)
 
+    # update both the temporary dictionary and the SQL Words table
+    def extract_words(words, ddd):
+        for word in words:
+            word = word.strip()
+            if word == '':
+                continue
+            if len(re.findall('[0-9_@#"%&/()=+?-]', word)):
+                continue
+            word = re.sub('[.,]', '', word.lower())
+            # initialize or update word count
+            ddd[word] = ddd.get(word, 0) + 1
+            cur.execute('INSERT OR IGNORE INTO Words (text, freq) VALUES (?, 0)', (word,))
+            cur.execute('UPDATE Words SET freq=? WHERE text=?', (ddd[word], word))
+        print str(len(words)) + ' words added to Words table',
+
     body_text = text_from_html(html)
     words = body_text.split()
     # add words into temporary dictionary, ans also update SQL word table
     extract_words(words,ddd)
     # update the page table in sql file, checking the current page url as 'used'
-    soup = BeautifulSoup(html)
+    soup = BeautifulSoup(html,'lxml')
     cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0)', ( url, ) )
     cur.execute('UPDATE Pages SET html=? WHERE url=?', (1, url ) )
     conn.commit()
@@ -161,37 +196,8 @@ def extract_from_new_link():
         cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0 )', ( href, ) )
         tag_count = tag_count + 1
     conn.commit()
-    print ', ' + str(tag_count) + ' new links where added to page table'
+    print ', ' + str(tag_count) + ' new links were added to Pages table'
 
-# pick a random unused url from the SQL Pages table
-def pick_unused_link(cur):
-    cur.execute('SELECT id,url FROM Pages WHERE html == 0 ORDER BY RANDOM() LIMIT 1')
-    try:
-        row = cur.fetchone()
-        # print row
-        fromid = row[0]
-        url = row[1]
-    except:
-        print 'Empty table or no unretrieved HTML pages found'
-        url = starturl
-        fromid = 0
-    print 'extract words from page: ', url,
-    return url
-
-# update both the temporary dictionary and the SQL Words table
-def extract_words(words,ddd):
-    for word in words:
-        word = word.strip()
-        if word == '':
-            continue
-        if len(re.findall('[0-9_@#"%&/()=+?-]', word)):
-            continue
-        word = re.sub('[.,]', '', word.lower())
-        # initialize or update word count
-        ddd[word] = ddd.get(word, 0) + 1
-        cur.execute('INSERT OR IGNORE INTO Words (text, freq) VALUES (?, 0)', (word,))
-        cur.execute('UPDATE Words SET freq=? WHERE text=?', (ddd[word], word))
-    #                    cur.execute('UPDATE Words SET freq=freq+1 WHERE text=?', (word,))
 
 
 if __name__ == '__main__':
