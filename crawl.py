@@ -15,19 +15,26 @@ import urllib
 from bs4 import BeautifulSoup
 from urlparse import urlparse, urljoin
 import re
-
+import init_web_pages as iwp
+import browse_korpus as krp
 # if Pages table is empty, initiate it with fixed url
 # TODO: alternative: always initiate with random url (from a fixed list)
+
+
 def init_pages_table():
     global starturl, conn, cur, ddd
-    starturl = 'http://ordnet.dk/ddo/ordbog?query=pusten'
-    # starturl = 'http://jyllands-posten.dk'
+    u = iwp.url_starter()
+    u.init_urls()
+    starturl = u.draw_link()# draw a random link from a list
+    # open sql database file
     conn = sqlite3.connect('spider.sqlite')
     cur = conn.cursor()
+    # handle 'Words' table
     cur.execute('''CREATE TABLE IF NOT EXISTS Words
     (
     id INTEGER PRIMARY KEY,
     text TEXT UNIQUE,
+    used_in_korpus BOOL default False,
     freq INTEGER
     )''')
     cur.execute('''SELECT text,freq FROM Words''')
@@ -35,6 +42,9 @@ def init_pages_table():
     ddd = {}
     for k, v in words:
         ddd[k] = v
+    cur.execute('''SELECT id, text, used_in_korpus FROM Words''')
+    words = cur.fetchall()
+    # handle 'Pages' table
     cur.execute('''CREATE TABLE IF NOT EXISTS Pages 
     (
      id INTEGER PRIMARY KEY,
@@ -42,6 +52,7 @@ def init_pages_table():
      error INTEGER,
      html INTEGER
     )''')
+
     # count how many entries exist
     cur.execute('''SELECT id,url FROM Pages''')
     rows = cur.fetchall()
@@ -52,6 +63,9 @@ def init_pages_table():
     l = len(rows)
     print "A table of "+str(pl)+" pages already exists, in which " + str(l) + " of them were used"
 
+    # or....
+def extract_from_korpus():
+    many_words = krp.pick_url('hvad')
 
 def extract_from_new_link():
 
@@ -92,6 +106,7 @@ def extract_from_new_link():
 
     def text_from_html(body):
         soup = BeautifulSoup(body, 'html.parser')
+
         texts = soup.findAll(text=True)
         visible_texts = filter(tag_visible, texts)
         return u" ".join(t.strip() for t in visible_texts)

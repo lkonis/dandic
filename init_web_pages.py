@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from random import randint as rndi
-starturl=list('')
-def init_urls():
+class url_starter():
+    starturl=list('')
+    def init_urls(self):
+        self.starturl.append('http://ordnet.dk/ddo/ordbog?query=pusten')
+        self.starturl.append('http://jyllands-posten.dk')
+        self.starturl.append('http://')
 
-    starturl.append('http://ordnet.dk/ddo/ordbog?query=pusten')
-    starturl.append('http://jyllands-posten.dk')
-    starturl.append('http://')
-    return starturl
-
-def draw_link():
-    i = rndi(0,len(starturl)-1)
-    return starturl[i]
+    def draw_link(self):
+        from random import randint as rndi
+        i = rndi(0,len(self.starturl)-1)
+        return self.starturl[i]
 
 if __name__ == '__main__':
-    starturl = init_urls()
-    for l in starturl:
+    urls = url_starter()
+    urls.init_urls()
+    for l in urls.starturl:
         print 'url: '+ l
-    print 'chosen url: ' + draw_link()
+    print 'chosen url: ' + urls.draw_link()
