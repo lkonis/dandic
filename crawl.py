@@ -19,6 +19,7 @@ import init_web_pages as iwp
 import browse_korpus as krp
 # if Pages table is empty, initiate it with fixed url
 # TODO: alternative: always initiate with random url (from a fixed list)
+from bs4_utilities import extr_danish_w
 
 
 def init_pages_table():
@@ -171,9 +172,7 @@ def extract_from_new_link():
         conn.commit()
         print ', ' + str(tag_count) + ' new links were added to Pages table'
 
-    url = pick_unused_link(cur)
-
-    def try_read():
+    def try_read(url):
         # try to read a page using the new url, update the SQL Pages table
         # TODO - test if language is danish
         try:
@@ -206,10 +205,13 @@ def extract_from_new_link():
             return html
         return html
 
-    html = try_read()
+    url = pick_unused_link(cur)
+
+    html = try_read(url)
     # 3. extract text from html
-    body_text = text_from_html(html)
-    words = body_text.split()
+    words = extr_danish_w(html)
+#    body_text = text_from_html(html)
+#    words = body_text.split()
     # add words into temporary dictionary, ans also update SQL word table
     extract_words(words,ddd)
     # update the page table in sql file, checking the current page url as 'used'

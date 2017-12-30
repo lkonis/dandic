@@ -10,7 +10,7 @@ dansk_tal_str = re.compile(unicode('^[a-zæøåA-ZÆØÅéÉ0-9"\'\s,.:!?]*$', '
 dansk_str = re.compile(unicode('^[a-zæøåA-ZÆØÅéÉ]*$', 'utf-8'))
 
 
-def tag_visible_lines(element):
+def valid_text_rules(element):
     if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
         return False
     if isinstance(element, Comment):
@@ -28,22 +28,27 @@ def tag_visible_lines(element):
         return False
 
 
-if __name__ == '__main__':
-    # Normal Unless you encounter certificate problems
-    url = 'http://ordnet.dk/korpusdk'
-
-    document = urllib.urlopen(url)
-
-    html = document.read()
-
+def extr_danish_w(html):
+    #document = urllib.urlopen(url)
+    #html = document.read()
     soup = BeautifulSoup(html, 'html.parser')
-
     texts = soup.findAll(text=True)
-    visible_text_lines = filter(tag_visible_lines, texts)
+    visible_text_lines = filter(valid_text_rules, texts)
     words_list = []
     for line in visible_text_lines:
         for l in line.split():
             l = l.strip()
+            if len(l)<2:
+                break
             if re.match(dansk_str, l):
                 words_list.append(l)
-    print visible_text_lines
+    return words_list
+
+
+if __name__ == '__main__':
+    # main routine for testing the methods above
+    url = 'http://ordnet.dk/korpusdk'
+
+    words_list = extr_danish_w(url)
+    for w in words_list:
+        print w
