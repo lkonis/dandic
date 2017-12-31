@@ -19,7 +19,7 @@ import init_web_pages as iwp
 import browse_korpus as krp
 # if Pages table is empty, initiate it with fixed url
 # TODO: alternative: always initiate with random url (from a fixed list)
-from bs4_utilities import extr_danish_w
+from bs4_utilities import *
 
 
 def init_pages_table():
@@ -66,7 +66,7 @@ def init_pages_table():
 
     # or....
 def extract_from_korpus(query_word):
-    many_words = krp.pick_url(query_word)
+    return krp.pick_url(query_word)
 
 def extract_from_new_link():
 
@@ -113,21 +113,6 @@ def extract_from_new_link():
         visible_texts = filter(tag_visible, texts)
         return u" ".join(t.strip() for t in visible_texts)
     '''
-    # update both the temporary dictionary and the SQL Words table
-    def extract_words(words, ddd):
-        for word in words:
-            word = word.strip()
-            if word == '':
-                continue
-            if len(re.findall('[0-9_@#"%&/()=+?-]', word)):
-                continue
-            word = re.sub('[.,]', '', word.lower())
-            # initialize or update word count
-            ddd[word] = ddd.get(word, 0) + 1
-            cur.execute('INSERT OR IGNORE INTO Words (text, freq) VALUES (?, 0)', (word,))
-            cur.execute('UPDATE Words SET freq=? WHERE text=?', (ddd[word], word))
-        print str(len(words)) + ' words added to Words table',
-
     # before extracting new url links, choose which to ignore
     def ignore_tags(url, href):
         ignore = False
@@ -222,18 +207,28 @@ def extract_from_new_link():
 #    body_text = text_from_html(html)
 #    words = body_text.split()
     # add words into temporary dictionary, ans also update SQL word table
-    extract_words(words,ddd)
+    update_database(words,ddd,cur)
     # update the page table in sql file, checking the current page url as 'used'
     soup = BeautifulSoup(html,'lxml')
     cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0)', ( url, ) )
     cur.execute('UPDATE Pages SET html=? WHERE url=?', (1, url ) )
     conn.commit()
 
-    # 2. extract other links
+    # 2. extract and add new links
     extract_urls( soup, url)
+def add_from_korpus():
+    cur.execute('SELECT id,text,freq FROM Words WHERE freq >= 5 ORDER BY RANDOM() LIMIT 1')
+    extr = cur.fetchall()
+    if len(extr)==1:
+        try_word = extr.pop()
+        words = extract_from_korpus(try_word[1])
+        update_database(words, ddd, cur)
+        conn.commit()
+
 
 if __name__ == '__main__':
     init_pages_table()
-    for i in range(10):
+    for i in range(20):
         extract_from_new_link()
+        add_from_korpus()
     cur.close()

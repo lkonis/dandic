@@ -48,6 +48,23 @@ def extr_danish_w(html):
                     words_list.append(l)
     return words_list
 
+# update both the temporary dictionary and the SQL Words table
+def update_database(words, ddd, cur):
+    for word in words:
+        word = word.strip()
+        if word == '':
+            continue
+        if len(re.findall('[0-9_@#"%&/()=+?-]', word)):
+            continue
+        word = re.sub('[.,]', '', word.lower())
+        if word=='korpusdk':
+            continue
+        # initialize or update word count
+        ddd[word] = ddd.get(word, 0) + 1
+        cur.execute('INSERT OR IGNORE INTO Words (text, freq) VALUES (?, 0)', (word,))
+        cur.execute('UPDATE Words SET freq=? WHERE text=?', (ddd[word], word))
+    print str(len(words)) + ' words added to Words table',
+
 
 if __name__ == '__main__':
     # main routine for testing the methods above

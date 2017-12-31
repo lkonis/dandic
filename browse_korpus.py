@@ -8,6 +8,9 @@ from bs4 import BeautifulSoup
 def pick_url(word):
     path_to_url = 'http://ordnet.dk/korpusdk'
 
+    # convert to searchable text (unicode)
+    if isinstance(word, unicode):
+        word = word.encode('utf-8')
     # open a browser
 
     # width, height
@@ -16,7 +19,7 @@ def pick_url(word):
     driver.get(path_to_url)
     assert 'Korpus' in driver.title
     elem = driver.find_element_by_id('searchform')
-    elem.send_keys(word)
+    elem.send_keys(word.decode('utf-8'))
     try:
         elem.send_keys(Keys.RETURN)
     except ValueError:
@@ -27,9 +30,11 @@ def pick_url(word):
         all_text = soup.get_text()
     except ValueError:
         print "didn't work: " + ValueError.message
+
+    driver.quit()
     return all_text.split()
 
 if __name__ == '__main__':
-    ret_text = pick_url(u'hjælp')
+    ret_text = pick_url('hjlp')
     print ret_text[0:10]
 
