@@ -65,8 +65,8 @@ def init_pages_table():
     print "A table of "+str(pl)+" pages already exists, in which " + str(l) + " of them were used"
 
     # or....
-def extract_from_korpus():
-    many_words = krp.pick_url('hvad')
+def extract_from_korpus(query_word):
+    many_words = krp.pick_url(query_word)
 
 def extract_from_new_link():
 
@@ -89,6 +89,7 @@ def extract_from_new_link():
         print 'extract words from page: ', url,
         return url
 
+    '''
     # find relevant text before adding words to frequency dictionary
     def tag_visible(element):
         from bs4.element import Comment
@@ -111,7 +112,7 @@ def extract_from_new_link():
         texts = soup.findAll(text=True)
         visible_texts = filter(tag_visible, texts)
         return u" ".join(t.strip() for t in visible_texts)
-
+    '''
     # update both the temporary dictionary and the SQL Words table
     def extract_words(words, ddd):
         for word in words:
@@ -161,8 +162,11 @@ def extract_from_new_link():
         #  Retrieve all of the anchor tags
         # update the page table in sql file, adding new urls
         tags = soup('a')
+        MAX_NEW_LINKS_FROM_PAGE = 12
         tag_count = 0
         for tag in tags:
+            if tag_count>=MAX_NEW_LINKS_FROM_PAGE:
+                break
             href = tag.get('href', None)
             href = ignore_tags(url, href)
             if not href: continue
@@ -202,12 +206,17 @@ def extract_from_new_link():
             print "Unable to retrieve or parse page"
             cur.execute('UPDATE Pages SET error=-1 WHERE url=?', (url, ) )
             conn.commit()
-            return html
+            try:
+                return html
+            except:
+                return None
         return html
 
     url = pick_unused_link(cur)
 
     html = try_read(url)
+    if html==None:
+        return
     # 3. extract text from html
     words = extr_danish_w(html)
 #    body_text = text_from_html(html)

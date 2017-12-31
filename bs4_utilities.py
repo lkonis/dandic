@@ -35,13 +35,17 @@ def extr_danish_w(html):
     texts = soup.findAll(text=True)
     visible_text_lines = filter(valid_text_rules, texts)
     words_list = []
+    words_cnt = dict()
+    MAX_WORD_CNT_IN_PAGE = 2
     for line in visible_text_lines:
         for l in line.split():
             l = l.strip()
             if len(l)<2:
                 break
             if re.match(dansk_str, l):
-                words_list.append(l)
+                words_cnt[l] = words_cnt.get(l,0) + 1
+                if words_cnt[l] <= MAX_WORD_CNT_IN_PAGE:
+                    words_list.append(l)
     return words_list
 
 
