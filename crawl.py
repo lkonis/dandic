@@ -217,18 +217,20 @@ def extract_from_new_link():
     # 2. extract and add new links
     extract_urls( soup, url)
 def add_from_korpus():
-    cur.execute('SELECT id,text,freq FROM Words WHERE freq >= 5 ORDER BY RANDOM() LIMIT 1')
+    cur.execute('SELECT text FROM Words WHERE freq >= 5 AND NOT used_in_korpus ORDER BY RANDOM() LIMIT 1')
     extr = cur.fetchall()
     if len(extr)==1:
         try_word = extr.pop()
-        words = extract_from_korpus(try_word[1])
+        try_word = try_word[0]
+        words = extract_from_korpus(try_word)
         update_database(words, ddd, cur)
+        cur.execute('UPDATE Words SET used_in_korpus=? WHERE text=?', (True, try_word))
         conn.commit()
 
 
 if __name__ == '__main__':
     init_pages_table()
-    for i in range(20):
+    for i in range(10):
         extract_from_new_link()
         add_from_korpus()
     cur.close()

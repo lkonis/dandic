@@ -54,7 +54,7 @@ def update_database(words, ddd, cur):
         word = word.strip()
         if word == '':
             continue
-        if len(re.findall('[0-9_@#"%&/()=+?-]', word)):
+        if not (re.findall(dansk_str, word)):
             continue
         word = re.sub('[.,]', '', word.lower())
         if word=='korpusdk':
