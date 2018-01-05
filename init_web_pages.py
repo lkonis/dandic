@@ -6,7 +6,8 @@ class url_starter():
     def init_urls(self):
         self.starturl.append('http://ordnet.dk/ddo/ordbog?query=pusten')
         self.starturl.append('http://jyllands-posten.dk')
-        self.starturl.append('http://')
+        self.starturl.append('https://www.dr.dk/ligetil')
+        self.starturl.append('https://mediavejviseren.dk/aviser/danske-aviser-danmark.htm')
 
     def draw_link(self):
         from random import randint as rndi

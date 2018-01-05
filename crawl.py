@@ -74,20 +74,6 @@ def extract_from_new_link():
     # 2. extract other links from it
     # 3. extract all text words and update word-database
 
-    # pick a random unused url from the SQL Pages table
-    def pick_unused_link(cur):
-        cur.execute('SELECT id,url FROM Pages WHERE html == 0 ORDER BY RANDOM() LIMIT 1')
-        try:
-            row = cur.fetchone()
-            # print row
-            fromid = row[0]
-            url = row[1]
-        except:
-            print 'Empty table or no unretrieved HTML pages found'
-            url = starturl
-            fromid = 0
-        print 'extract words from page: ', url,
-        return url
 
     '''
     # find relevant text before adding words to frequency dictionary
@@ -197,7 +183,7 @@ def extract_from_new_link():
                 return None
         return html
 
-    url = pick_unused_link(cur)
+    url = pick_unused_link(cur, starturl)
 
     html = try_read(url)
     if html==None:
