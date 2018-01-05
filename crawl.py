@@ -17,7 +17,7 @@ from urlparse import urlparse, urljoin
 import re
 import init_web_pages as iwp
 import browse_korpus as krp
-# if Pages table is empty, initiate it with fixed url
+# if Pages table is empty, initiate it with fixed
 # TODO: alternative: always initiate with random url (from a fixed list)
 from bs4_utilities import *
 
@@ -155,6 +155,13 @@ def extract_from_new_link():
             # Normal Unless you encounter certificate problems
             document = urllib.urlopen(url)
 
+            # verify language is danish
+            soup = BeautifulSoup(document,'html.parser')
+            if not soup.find('html',lang='da'):
+                if not 'watchmedier.dk' in url:
+                    print 'language is not danish'
+                    return
+            document = urllib.urlopen(url)
             html = document.read()
             # - test if document is legal...
             if document.getcode() != 200 :
@@ -216,7 +223,7 @@ def add_from_korpus():
 
 if __name__ == '__main__':
     init_pages_table()
-    for i in range(10):
+    for i in range(20):
         extract_from_new_link()
         add_from_korpus()
     cur.close()

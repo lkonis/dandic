@@ -73,10 +73,10 @@ def pick_unused_link(cur, starturl):
             print 'Empty table or no unretrieved HTML pages found'
             url = starturl
             fromid = 0
-        print 'extract words from page: ', url,
         i = rndi(0, 10)
         if i < 3: # probability 30%
             url = starturl
+        print 'extract words from page: ', url,
         return url
 
 # update both the temporary dictionary and the SQL Words table
