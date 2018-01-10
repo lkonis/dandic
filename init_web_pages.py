@@ -8,6 +8,12 @@ class url_starter():
         self.starturl.append('http://jyllands-posten.dk')
         self.starturl.append('https://www.dr.dk/ligetil')
         self.starturl.append('https://mediavejviseren.dk/aviser/danske-aviser-danmark.htm')
+        self.starturl.append('https://blogs.business.dk/')
+        self.starturl.append('https://www.viunge.dk/')
+        self.starturl.append('https://watchmedier.dk/')
+        self.starturl.append('http://denstoredanske.dk/')
+        self.starturl.append('https://litteratursiden.dk/topics')
+        self.starturl.append('https://mediawatch.dk/')
 
     def draw_link(self):
         from random import randint as rndi

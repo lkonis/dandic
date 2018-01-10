@@ -81,6 +81,7 @@ def pick_unused_link(cur, starturl):
 
 # update both the temporary dictionary and the SQL Words table
 def update_database(words, ddd, cur):
+    cnt = 0
     for word in words:
         word = word.strip()
         if word == '':
@@ -95,9 +96,10 @@ def update_database(words, ddd, cur):
 
         # initialize or update word count
         ddd[word] = ddd.get(word, 0) + 1
+        cnt = cnt + 1
         cur.execute('INSERT OR IGNORE INTO Words (text, freq) VALUES (?, 0)', (word,))
         cur.execute('UPDATE Words SET freq=? WHERE text=?', (ddd[word], word))
-    print str(len(words)) + ' words added to Words table',
+    print str(cnt) + ' words added to Words table',
 
 
 if __name__ == '__main__':

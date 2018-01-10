@@ -101,13 +101,18 @@ def extract_from_new_link():
     '''
     # before extracting new url links, choose which to ignore
     def ignore_tags(url, href):
-        ignore = False
+        forbidden_words='''
+            javascript
+            facebook
+            tweeter
+            '''
         if (href is None):
             return False
         if '@' in href:
             return False
-        if 'javascript' in href:
-            return False
+        for w in forbidden_words.split():
+            if w in href:
+                return False
         # Resolve relative references like href="/contact"
         up = urlparse(href)
         if (len(up.scheme) < 1):
@@ -132,15 +137,26 @@ def extract_from_new_link():
     def extract_urls(soup, url):
         #  Retrieve all of the anchor tags
         # update the page table in sql file, adding new urls
-        tags = soup('a')
+        tags = soup.find_all('a',href=True)
         MAX_NEW_LINKS_FROM_PAGE = 12
+        MAX_SAME_DOMAIN_LINKS = 8
         tag_count = 0
+        tag_same_domain_count = 0
+        same_domain = False
         for tag in tags:
             if tag_count>=MAX_NEW_LINKS_FROM_PAGE:
                 break
             href = tag.get('href', None)
+            if not tag['href'].startswith('http'):
+                same_domain = True
+            else:
+                same_domain = False
             href = ignore_tags(url, href)
             if not href: continue
+            if same_domain:
+                tag_same_domain_count = tag_same_domain_count + 1
+                if tag_same_domain_count >= MAX_SAME_DOMAIN_LINKS:
+                    continue
             # found new url? add it to the pages table with NULL html
             cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, 0 )', (href,))
             tag_count = tag_count + 1
@@ -215,6 +231,8 @@ def add_from_korpus():
     if len(extr)==1:
         try_word = extr.pop()
         try_word = try_word[0]
+        if try_word==u'cookies':
+            return
         words = extract_from_korpus(try_word)
         update_database(words, ddd, cur)
         cur.execute('UPDATE Words SET used_in_korpus=? WHERE text=?', (True, try_word))
@@ -223,7 +241,8 @@ def add_from_korpus():
 
 if __name__ == '__main__':
     init_pages_table()
-    for i in range(20):
+    extract_from_new_link()
+    for i in range(10):
         extract_from_new_link()
         add_from_korpus()
     cur.close()
